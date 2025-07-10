@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RAG-MCP Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --brand-color: #e86e58;
+      --background-color: #f8f7f5;
+      --text-color: #1f1f1f;
+      --border-color: #e0e0e0;
+      --user-msg-bg: #e0eafc;
+      --bot-msg-bg: #f0f0f0;
+      --input-bg: #ffffff;
+      --orb-color-1: #d387f5;
+      --orb-color-2: #a361d1;
+      --orb-color-3: #7c4bb6;
+      --text-grad-1: #6a3093;
+      --text-grad-2: #a044ff;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--background-color);
+      display: flex;
+      justify-content: center;
+      height: 100vh;
+      color: var(--text-color);
+      position: relative; 
+      overflow: hidden; 
+    }
+
+    @keyframes move-blob {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(40px, -60px) scale(1.1); }
+      100% { transform: translate(0, 0) scale(1); }
+    }
+
+    .blur-shape {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(150px);
+      z-index: -1;
+      opacity: 0.4;
+      animation: move-blob 25s infinite alternate;
+    }
+    .blur-shape-1 {
+      width: 450px;
+      height: 450px;
+      background: var(--brand-color);
+      top: -150px;
+      left: -200px;
+    }
+    .blur-shape-2 {
+      width: 400px;
+      height: 400px;
+      background: var(--user-msg-bg);
+      bottom: -150px;
+      right: -150px;
+      animation-delay: -12s; 
+      animation-duration: 35s; 
+    }
+
+    .main-container {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background-color: transparent; 
+    }
+
+    .chat-window {
+      flex: 1;
+      padding: 1rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes pulse {
+        50% { transform: scale(1.03); }
+    }
+
+    .welcome-header {
+      text-align: center;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex-grow: 1;
+      padding: 2rem;
+      background: radial-gradient(ellipse at center, #ffffff 50%, #f7f7fa 100%);
+    }
+
+    .orb-container {
+        width: 150px;
+        height: 150px;
+        position: relative;
+        border-radius: 50%;
+        overflow: hidden;
+        box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.5), 0 0 25px var(--orb-color-1), 0 0 50px var(--orb-color-2);
+        animation: pulse 7s ease-in-out infinite;
+    }
+
+    .orb-layer {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 200%;
+        height: 200%;
+        background-size: 100% 100%;
+        animation: rotate 10s linear infinite;
+    }
+    .orb-layer.wave1 {
+        background-image: conic-gradient(from 90deg, var(--orb-color-1), var(--orb-color-2), var(--orb-color-3), var(--orb-color-2), var(--orb-color-1));
+        opacity: 0.8;
+    }
+    .orb-layer.wave2 {
+        background-image: linear-gradient(45deg, var(--orb-color-3) 25%, transparent 50%, var(--orb-color-1) 75%);
+        animation-duration: 15s;
+        animation-direction: reverse;
+        opacity: 0.6;
+    }
+
+    .welcome-text { margin-top: 2.5rem; }
+    .welcome-text h1, .welcome-text h2 {
+        margin: 0.25rem 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        text-shadow: 2px 2px 20px rgba(0,0,0,0.05);
+    }
+    .welcome-text h1 {
+        font-size: 1.75rem;
+        font-weight: 500;
+        background-image: linear-gradient(90deg, var(--text-grad-1), var(--text-grad-2));
+    }
+    .welcome-text h2 {
+        font-size: 2.25rem;
+        font-weight: 700;
+        background-image: linear-gradient(90deg, #333, #111);
+    }
+
+    .suggestion-container {
+        display: flex;
+        justify-content: center;
+        gap: 1.25rem;
+        margin-top: 3.5rem;
+        width: 100%;
+        padding: 0 1rem;
+        box-sizing: border-box;
+        flex-wrap: wrap;
+    }
+    .suggestion-box {
+        background-color: #ffffff;
+        border: 1px solid #f2f2f5;
+        border-radius: 16px;
+        padding: 1.25rem;
+        flex: 1;
+        max-width: 230px;
+        min-width: 180px;
+        box-shadow: 0 4px 20px rgba(100, 100, 150, 0.05);
+        cursor: pointer;
+        transition: all 0.25s ease;
+    }
+    .suggestion-box:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(100, 100, 150, 0.1);
+    }
+    .suggestion-svg {
+        width: 22px;
+        height: 22px;
+        margin-bottom: 1rem;
+    }
+    .suggestion-text {
+        margin: 0;
+        font-size: 0.875rem;
+        color: #1f1f1f;
+        line-height: 1.45;
+        font-weight: 500;
+    }
+    
+    .message {
+      padding: 0.75rem 1.25rem;
+      border-radius: 1.25rem;
+      max-width: 75%;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+    .user { 
+      background: var(--user-msg-bg); 
+      align-self: flex-end; 
+      border-bottom-right-radius: 0.5rem;
+    }
+    .bot { 
+      background: var(--bot-msg-bg); 
+      align-self: flex-start; 
+      border-bottom-left-radius: 0.5rem;
+    }
+    
+    .input-container { padding: 1rem 2rem 2rem 2rem; }
+    .input-bar {
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 1.5rem;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .input-tabs-container {
+        display: flex;
+        justify-content: flex-start;
+        gap: 1.5rem;
+        padding: 0.75rem 1.5rem 0.5rem;
+    }
+    .input-tab {
+        color: #8A8A9E;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        padding-bottom: 0.5rem;
+        position: relative;
+        transition: color 0.2s ease-in-out;
+    }
+    .input-tab:hover { color: #4A4A6A; }
+    .input-tab.active {
+        color: #4A4A6A;
+        font-weight: 600;
+    }
+    .input-tab.active::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background-color: #4A4A6A;
+        border-radius: 1px;
+    }
+    .input-main-area {
+        border-top: 1px solid var(--border-color);
+        padding: 0.75rem 1.5rem;
+    }
+    
+    #query {
+      border: none;
+      outline: none;
+      resize: none;
+      font-size: 1rem;
+      font-family: inherit;
+      background: transparent;
+      width: 100%;
+      min-height: 48px;
+      max-height: 200px;
+      line-height: 1.5;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    .input-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 0.5rem;
+    }
+    #source {
+      border: none;
+      background: transparent;
+      font-size: 0.875rem;
+      color: #555;
+      padding: 0.25rem 1.75rem 0.25rem 0.5rem;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 0.5rem center;
+      background-size: 1em;
+      transition: background-color 0.2s;
+    }
+    #source:hover { background-color: #f5f5f5; }
+
+    button {
+      background: var(--brand-color);
+      color: white;
+      border: none;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      font-size: 1.5rem;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.2s;
+      padding-bottom: 2px;
+      flex-shrink: 0;
+    }
+    button:hover { background: #d95a44; }
+
+    /* === START: NEW LOG STYLES === */
+    .log-card {
+        background-color: var(--input-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 1rem;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        word-wrap: break-word;
+    }
+
+    .log-header {
+        font-size: 0.8rem;
+        color: #666;
+        padding-bottom: 0.75rem;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .log-item {
+        margin-top: 1rem;
+    }
+    
+    .log-item strong {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: var(--text-color);
+    }
+    
+    .log-item pre {
+        margin: 0;
+        padding: 0.75rem;
+        background-color: var(--background-color);
+        border-radius: 8px;
+        white-space: pre-wrap; /* Ensures text wraps */
+        line-height: 1.6;
+        font-family: inherit;
+        font-size: 0.95rem;
+    }
+
+    /* === START: BOT RESPONSE STYLES === */
+.bot-response-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem; /* Creates space between summary and full text */
+}
+
+.response-summary {
+    background-color: rgba(0, 0, 0, 0.03);
+    border-left: 4px solid var(--brand-color);
+    padding: 1rem 1.25rem;
+    border-radius: 0 8px 8px 0;
+}
+
+.summary-title {
+    font-weight: 700;
+    font-size: 1.05em;
+    color: var(--text-color);
+    margin-bottom: 0.75rem;
+}
+
+.summary-list {
+    list-style-type: none;
+    padding-left: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.summary-item::before {
+    content: "•";
+    color: var(--brand-color);
+    font-weight: bold;
+    display: inline-block;
+    width: 1em;
+    margin-left: -1em;
+}
+
+.summary-item {
+    padding-left: 1.25em; /* Indent the text to align with title */
+    line-height: 1.5;
+}
+
+.response-full-text {
+    line-height: 1.6; /* Ensure good readability for the main text */
+}
+/* === END: BOT RESPONSE STYLES === */
+    /* === END: NEW LOG STYLES === */
+
+  </style>
+</head>
+<body>
+  <div class="blur-shape blur-shape-1"></div>
+  <div class="blur-shape blur-shape-2"></div>
+  
+  <div class="main-container">
+    <div class="chat-window" id="chat">
+      <div class="welcome-header">
+        <div class="orb-container">
+            <div class="orb-layer wave1"></div>
+            <div class="orb-layer wave2"></div>
+        </div>
+        <div class="welcome-text">
+          <h1 id="welcome-title">Hi there, it is your study assistant!</h1>
+          <h2 id="welcome-subtitle">How can I help you today?</h2>
+        </div>
+        
+        <div class="suggestion-container">
+            <div class="suggestion-box">
+                <svg class="suggestion-svg" viewBox="0 0 24 24" fill="none" stroke="#5f6368" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="2"></rect><rect x="8" y="9" width="8" height="6" rx="1"></rect></svg>
+                <p class="suggestion-text" id="suggestion-1">Explore Historical Timelines of Korea</p>
+            </div>
+            <div class="suggestion-box">
+                <svg class="suggestion-svg" viewBox="0 0 24 24" fill="none" stroke="#5f6368" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                <p class="suggestion-text" id="suggestion-2">Listen to Audio Summaries of Key Events</p>
+            </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="chat-window" id="logs-window" style="display: none;"></div>
+
+    <div class="input-container">
+      <div class="input-bar">
+        <div class="input-tabs-container">
+          <span class="input-tab active" id="tab-general">General</span>
+          <span class="input-tab" id="tab-media" onclick="document.getElementById('imageUpload').click()">Media</span>
+          <span class="input-tab" id="tab-logs">Logs</span>
+          
+          <select id="languageSelector" onchange="setLanguage(this.value)" style="margin-left:auto;">
+            <option value="en">English</option>
+            <option value="ko">한국어</option>
+          </select>
+        </div>
+    
+        <div class="input-main-area">
+          <textarea id="query" placeholder="Feel free to ask me any questions!" onkeydown="handleKey(event)"></textarea>
+    
+          <!-- Optional Image Preview Area -->
+          <div id="imagePreview" style="margin-top: 0.75rem;"></div>
+    
+          <div class="input-footer">
+            <select id="source">
+              <option value="rag">Gemini 1.5 Flash + RAG</option>
+              <option value="claude">Claude 3.5 Sonnet + RAG</option>
+            </select>
+            <select id="speedControl">
+              <option value="1">1x</option>
+              <option value="0.05">0.05x</option>
+              <option value="20" selected>20x</option>
+            </select>
+            <button onclick="send()">↑</button>
+          </div>
+        </div>
+      </div>
+    
+      <!-- Hidden File Input for Upload -->
+      <input type="file" id="imageUpload" accept="image/*" style="display: none" onchange="handleImageUpload(event)">
+    </div>    
+  </div>
+
+  <script>
+    const translations = {
+      en: {
+        title: "Hi there, it is your study assistant!",
+        subtitle: "How can I help you today?",
+        suggestion1: "Explore Historical Timelines of Korea",
+        suggestion2: "Listen to Audio Summaries of Key Events",
+        placeholder: "Feel free to ask me any questions!",
+        tabGeneral: "General",
+        tabMedia: "Media",
+        tabLogs: "Logs",
+        thinking: "Thinking...",
+      },
+      ko: {
+        title: "안녕하세요, 저는 당신의 학습 조수입니다!!",
+        subtitle: "오늘 하루도 좋은 하루 되세요!",
+        suggestion1: "한국 역사 시간표 탐험하기",
+        suggestion2: "중요 사건 오디오 요약 듣기",
+        placeholder: "자유롭게 질문해주세요!",
+        tabGeneral: "일반",
+        tabMedia: "미디어",
+        tabLogs: "로그",
+        thinking: "생각중...",
+      }
+    };
+  
+    let audioMode = false;
+    let selectedLang = localStorage.getItem("selectedLanguage") || "en";
+    document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("languageSelector").value = selectedLang;
+    setLanguage(selectedLang);
+
+    document.querySelectorAll(".suggestion-box")[0].addEventListener("click", () => {
+      const prompt = selectedLang === "ko"
+       ? "조선 왕조의 연대표를 나열하고 간단히 설명해 주세요."
+       : "List the timeline of the Joseon dynasty and explain briefly.";
+      sendShortcutPrompt(prompt);
+    });
+  });
+
+  document.querySelectorAll(".suggestion-box")[1].addEventListener("click", () => {
+  const prompt = selectedLang === "ko"
+    ? "중요한 조선 시대 사건에 대한 오디오 요약을 들려주세요."
+    : "Give an audio-friendly summary of key events from the Joseon dynasty.";
+  audioMode = true;
+  sendShortcutPrompt(prompt);
+});
+
+    function sendShortcutPrompt(promptText) {
+     queryInput.value = promptText;
+     send();  // Reuse the existing send() function
+    }
+  
+    function setLanguage(lang) {
+      selectedLang = lang;
+      document.getElementById("welcome-title").textContent = translations[lang].title;
+      document.getElementById("welcome-subtitle").textContent = translations[lang].subtitle;
+      document.getElementById("suggestion-1").textContent = translations[lang].suggestion1;
+      document.getElementById("suggestion-2").textContent = translations[lang].suggestion2;
+      document.getElementById("query").placeholder = translations[lang].placeholder;
+      document.getElementById("tab-general").innerText = translations[lang].tabGeneral;
+      document.getElementById("tab-media").innerText = translations[lang].tabMedia;
+      document.getElementById("tab-logs").innerText = translations[lang].tabLogs;
+  
+      const bubble = document.getElementById("thinkingBubble");
+      if (bubble) bubble.innerText = translations[lang].thinking;
+      localStorage.setItem("selectedLanguage", lang);
+    }
+  
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("languageSelector").value = selectedLang;
+      setLanguage(selectedLang);
+    });
+  
+    const queryInput = document.getElementById("query");
+    const chatWindow = document.getElementById("chat");
+    const logsWindow = document.getElementById("logs-window");
+    const inputArea = document.querySelector(".input-main-area");
+    const tabs = document.querySelectorAll(".input-tab");
+    const imageUploadInput = document.getElementById("imageUpload");
+    const imagePreviewArea = document.getElementById("imagePreview");
+  
+    let socket;
+    let currentBotMessageElement = null;
+
+    async function showLogs() {
+  logsWindow.innerHTML = "";  // Clear previous logs
+  logsWindow.style.display = 'flex';
+  chatWindow.style.display = 'none';
+  inputArea.style.display = 'none';
+
+  try {
+    const res = await fetch("/api/logs");
+    const data = await res.json();
+    const logs = data.logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    if (!logs.length) {
+      logsWindow.innerHTML = `<div style="padding:2rem; color:#666;">${selectedLang === "ko" ? "저장된 로그가 없습니다." : "No logs available."}</div>`;
+      return;
+    }
+
+    logs.forEach((entry) => {
+      const logCard = document.createElement("div");
+      logCard.className = "log-card";
+
+      const header = document.createElement("div");
+      header.className = "log-header";
+      const date = new Date(entry.timestamp);
+      header.innerText = date.toLocaleString(selectedLang === "ko" ? "ko-KR" : "en-US");
+
+      const userItem = document.createElement("div");
+      userItem.className = "log-item";
+      userItem.innerHTML = `<strong>${selectedLang === "ko" ? "사용자" : "User"}:</strong><pre>${entry.user}</pre>`;
+
+      const botItem = document.createElement("div");
+      botItem.className = "log-item";
+      botItem.innerHTML = `<strong>${selectedLang === "ko" ? "봇 응답" : "Bot"}:</strong><pre>${entry.bot}</pre>`;
+
+      logCard.appendChild(header);
+      logCard.appendChild(userItem);
+      logCard.appendChild(botItem);
+      logsWindow.appendChild(logCard);
+    });
+  } catch (e) {
+    logsWindow.innerHTML = `<div style="padding:2rem; color:red;">${selectedLang === "ko" ? "로그를 불러오는 중 오류 발생" : "Error loading logs."}</div>`;
+    console.error("Failed to load logs:", e);
+  }
+}
+function connect() {
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.host;
+  socket = new WebSocket(`${proto}//${host}/ws/ask`);
+
+  socket.onopen = () => console.log("WebSocket connected");
+
+  socket.onmessage = (event) => {
+    const data = event.data;
+
+    if (currentBotMessageElement && currentBotMessageElement.dataset.isThinking) {
+      currentBotMessageElement.innerHTML = "";
+      delete currentBotMessageElement.dataset.isThinking;
+    }
+
+    if (data.startsWith("[SUMMARY_JSON]")) {
+      const jsonStr = data.replace("[SUMMARY_JSON]", "");
+      const summary = JSON.parse(jsonStr);
+      const html = renderBotSummary(summary);
+      if (currentBotMessageElement) {
+        currentBotMessageElement.innerHTML = html;
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+      }
+      return;
+    }
+
+    if (data === "[END_OF_STREAM]") {
+      if (audioMode && currentBotMessageElement && 'speechSynthesis' in window) {
+        const spokenText = currentBotMessageElement.innerText.trim();
+        if (spokenText.length > 0) {
+          speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(spokenText);
+          utter.lang = selectedLang === "ko" ? "ko-KR" : "en-US";
+          speechSynthesis.speak(utter);
+        }
+        audioMode = false; // reset after one use
+      }
+      currentBotMessageElement = null;
+    } else if (data.startsWith("[ERROR]")) {
+      const bubble = currentBotMessageElement?.querySelector("#thinkingBubble");
+      if (bubble) bubble.remove();
+      if (currentBotMessageElement) {
+        currentBotMessageElement.innerHTML = `<span style='color:red;'>${data}</span>`;
+        currentBotMessageElement = null;
+      }
+    } else {
+      if (currentBotMessageElement) {
+        currentBotMessageElement.innerHTML += data;
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+      }
+    }
+  };
+
+  socket.onclose = () => setTimeout(connect, 1000);
+  socket.onerror = (err) => console.error("WebSocket error:", err);
+}
+
+  
+    document.addEventListener("DOMContentLoaded", connect);
+  
+    tabs.forEach(tab => tab.addEventListener("click", () => handleTabClick(tab)));
+  
+    function handleTabClick(clickedTab) {
+      tabs.forEach(tab => tab.classList.remove("active"));
+      clickedTab.classList.add("active");
+      const tabName = clickedTab.innerText.toLowerCase();
+      if (tabName === "logs" || tabName === "로그") showLogs();
+      else showChatView();
+    }
+  
+    function showChatView() {
+      logsWindow.style.display = 'none';
+      chatWindow.style.display = 'flex';
+      inputArea.style.display = 'block';
+    }
+  
+    queryInput.addEventListener("input", () => {
+      queryInput.style.height = "auto";
+      queryInput.style.height = `${queryInput.scrollHeight}px`;
+    });
+  
+    function handleKey(event) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        send();
+      }
+    }
+
+    audioMode = false;
+    
+    async function send() {
+      const query = queryInput.value.trim();
+      const imageFile = imageUploadInput.files[0];
+      if (!query && !imageFile) return;
+  
+      if (chatWindow.style.display === 'none') showChatView();
+  
+      const welcomeHeader = document.querySelector('.welcome-header');
+      if (welcomeHeader) welcomeHeader.remove();
+  
+      const userMsgContainer = document.createElement("div");
+      userMsgContainer.className = "message user";
+  
+      if (imageFile) {
+        const previewImg = imagePreviewArea.querySelector('img');
+        if (previewImg) {
+          const chatImg = document.createElement('img');
+          chatImg.src = previewImg.src;
+          chatImg.style.maxWidth = '100%';
+          chatImg.style.borderRadius = '12px';
+          if (query) chatImg.style.marginBottom = '0.5rem';
+          userMsgContainer.appendChild(chatImg);
+        }
+      }
+  
+      if (query) {
+        const userText = document.createElement('div');
+        userText.innerText = query;
+        userMsgContainer.appendChild(userText);
+      }
+  
+      chatWindow.appendChild(userMsgContainer);
+  
+      queryInput.value = "";
+      queryInput.style.height = "auto";
+      imagePreviewArea.innerHTML = "";
+      imageUploadInput.value = null;
+      queryInput.focus();
+  
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+  
+      currentBotMessageElement = document.createElement("div");
+      currentBotMessageElement.dataset.isThinking = "true";
+  
+      const thinkingElement = document.createElement("div");
+      thinkingElement.id = "thinkingBubble";
+      thinkingElement.innerText = translations[selectedLang]?.thinking || "Thinking...";
+      currentBotMessageElement.appendChild(thinkingElement);
+  
+      chatWindow.appendChild(currentBotMessageElement);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+  
+      const speedDropdown = document.getElementById("speedControl");
+      const selectedSpeed = parseFloat(speedDropdown.value);
+  
+      const payload = {
+        query: query,
+        image: null,
+        speed: selectedSpeed,
+        lang: selectedLang
+      };
+  
+      const sendPayload = () => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify(payload));
+        } else {
+          console.error("WebSocket not connected.");
+          if (currentBotMessageElement) {
+            currentBotMessageElement.innerHTML = "<span style='color:red;'>Error: Not connected to server.</span>";
+            currentBotMessageElement = null;
+          }
+        }
+      };
+  
+      if (imageFile) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          payload.image = e.target.result;
+          sendPayload();
+        };
+        reader.readAsDataURL(imageFile);
+      } else {
+        sendPayload();
+      }
+    }
+  
+    function handleImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) {
+        imagePreviewArea.innerHTML = "";
+        return;
+      }
+  
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = document.createElement("img");
+        img.src = e.target.result;
+        img.style.maxWidth = "300px";
+        img.style.borderRadius = "12px";
+        img.alt = "Uploaded image preview";
+  
+        imagePreviewArea.innerHTML = "";
+        imagePreviewArea.appendChild(img);
+      };
+      reader.readAsDataURL(file);
+    }
+  </script>
+</body>
+</html>

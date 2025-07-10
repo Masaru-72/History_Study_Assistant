@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+langchain
+langchain-google-genai
+chromadb
+wikipedia
+pytest
+protobuf==3.20.3
+Pillow
+google-generativeai
+genanki
+markdown2
