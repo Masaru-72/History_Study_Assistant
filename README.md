@@ -17,7 +17,5 @@ This assistant integrates LLM-based question answering, Wikipedia-powered RAG (R
 
 🔊 Optional Text-to-Speech: Listen to answers using built-in speech synthesis (for Korean or English).
 
-🧩 Anki Flashcard Export: Turn your questions and answers into Anki decks to review later.
-
 🕸️ RAG Integration: Dynamically pulls relevant content from Wikipedia (or your own knowledge base) for more accurate answers.
 
