@@ -1,4 +1,5 @@
 📚 Korean History Study Assistant: 조선시대 역사 챗봇
+
 Welcome to the Korean History Study Assistant, an AI-powered tool designed to help you explore and understand the history of Korea — especially during the Joseon Dynasty (조선시대).
 
 This assistant integrates LLM-based question answering, Wikipedia-powered RAG (Retrieval-Augmented Generation), and streaming responses to provide accurate, structured, and multilingual support for learners, educators, and enthusiasts alike.
